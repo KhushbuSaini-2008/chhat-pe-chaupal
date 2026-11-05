@@ -1,69 +1,79 @@
-import Image from "next/image";
+"use client";
+
+import Link from "next/link";
+import { motion } from "framer-motion";
+
+const stars = [
+  { top: "8%", left: "12%", delay: 0 },
+  { top: "15%", left: "80%", delay: 0.6 },
+  { top: "30%", left: "6%", delay: 1.2 },
+  { top: "22%", left: "55%", delay: 0.3 },
+  { top: "60%", left: "90%", delay: 0.9 },
+  { top: "75%", left: "10%", delay: 1.5 },
+  { top: "85%", left: "70%", delay: 0.4 },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-midnight via-midnight-light to-midnight px-6 py-12 text-center">
+      {stars.map((s, i) => (
+        <motion.span
+          key={i}
+          className="absolute text-xl"
+          style={{ top: s.top, left: s.left }}
+          animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
+          transition={{ duration: 3, repeat: Infinity, delay: s.delay }}
+        >
+          ✨
+        </motion.span>
+      ))}
+
+      <motion.div
+        className="relative z-10 flex flex-col items-center"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+      >
+        <motion.div
+          className="flex h-28 w-28 items-center justify-center rounded-full bg-marigold text-6xl shadow-lg shadow-marigold/40"
+          animate={{ y: [0, -10, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity }}
+        >
+          👧
+        </motion.div>
+
+        <div className="mt-6 max-w-xs rounded-3xl bg-cream px-5 py-3 text-midnight shadow-md">
+          <p className="text-lg font-semibold">
+            Namasteeee! Sab aa gaye? Chalo, chaupal sajaate hain! 🪔
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        <h1 className="mt-10 text-5xl font-extrabold text-marigold sm:text-6xl">
+          Chhat Pe Chaupal
+        </h1>
+        <p className="mt-3 text-xl text-cream/80">
+          Jahan bachpan phir se zinda hota hai.
+        </p>
+
+        <div className="mt-10 flex w-full max-w-xs flex-col gap-4">
+          <Link
+            href="/create"
+            className="rounded-full bg-marigold px-8 py-4 text-xl font-bold text-midnight shadow-lg transition hover:scale-105 hover:bg-marigold-dark"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            🏡 Create a Chaupal
+          </Link>
+          <Link
+            href="/join"
+            className="rounded-full border-2 border-marigold px-8 py-4 text-xl font-bold text-marigold transition hover:scale-105 hover:bg-marigold/10"
           >
-            Documentation
-          </a>
+            🎉 Join a Chaupal
+          </Link>
         </div>
-      </main>
-    </div>
+
+        <p className="mt-10 text-sm text-cream/60">
+          Riddles • Music • Yaadein • Family
+        </p>
+      </motion.div>
+    </main>
   );
 }
