@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -12,6 +12,17 @@ type Player = {
   score: number;
 };
 
+type Round = {
+  id: string;
+  round_number: number;
+  question_text: string;
+  hint: string | null;
+  points: number;
+  ends_at: string;
+};
+
+type Result = { roundId: string; correct: boolean; points: number } | null;
+
 function RoomContent() {
   const { roomId } = useParams<{ roomId: string }>();
   const code = roomId.toUpperCase();
@@ -21,11 +32,19 @@ function RoomContent() {
   const [meId, setMeId] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [origin, setOrigin] = useState("");
 
-  // Browser mein hi origin set hoga, taaki server aur client ka HTML match kare
+  const [roomStatus, setRoomStatus] = useState("lobby");
+  const [round, setRound] = useState<Round | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [answer, setAnswer] = useState("");
+  const [result, setResult] = useState<Result>(null);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Clock tick for the countdown
   useEffect(() => {
-    setOrigin(window.location.origin);
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
@@ -39,6 +58,17 @@ function RoomContent() {
         .eq("room_id", roomDbId)
         .order("joined_at");
       if (!cancelled && data) setPlayers(data as Player[]);
+    }
+
+    async function loadLatestRound(roomDbId: string) {
+      const { data } = await supabase
+        .from("game_rounds")
+        .select("*")
+        .eq("room_id", roomDbId)
+        .order("round_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled && data) setRound(data as Round);
     }
 
     async function init() {
@@ -60,21 +90,28 @@ function RoomContent() {
         return;
       }
       setMeId(myId);
+      setRoomStatus(room.status);
 
       await loadPlayers(room.id);
+      await loadLatestRound(room.id);
       if (cancelled) return;
 
       channel = supabase
         .channel(`room-${room.id}`)
         .on(
           "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "players",
-            filter: `room_id=eq.${room.id}`,
-          },
+          { event: "*", schema: "public", table: "players", filter: `room_id=eq.${room.id}` },
           () => loadPlayers(room.id)
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "game_rounds", filter: `room_id=eq.${room.id}` },
+          () => loadLatestRound(room.id)
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${room.id}` },
+          (payload) => setRoomStatus((payload.new as { status: string }).status)
         )
         .subscribe();
     }
@@ -86,17 +123,65 @@ function RoomContent() {
     };
   }, [code, router]);
 
-  const inviteLink = origin ? `${origin}/join?code=${code}` : "";
+  // Reset the answer box when a new round arrives
+  useEffect(() => {
+    setAnswer("");
+    setMessage("");
+  }, [round?.id]);
+
+  const me = players.find((p) => p.id === meId);
+  const ranked = [...players].sort((a, b) => b.score - a.score);
+  const secondsLeft = round
+    ? Math.max(0, Math.ceil((new Date(round.ends_at).getTime() - now) / 1000))
+    : 0;
+  const timeUp = !!round && secondsLeft === 0;
+  const myResult = result && round && result.roundId === round.id ? result : null;
+
+  const inviteLink =
+    typeof window !== "undefined" ? `${window.location.origin}/join?code=${code}` : "";
   const whatsappText = encodeURIComponent(
     `Chalo Chhat Pe Chaupal khelte hain! 🪔 Room code: ${code}\n${inviteLink}`
   );
-  const me = players.find((p) => p.id === meId);
 
   async function copyLink() {
-    if (!inviteLink) return;
     await navigator.clipboard.writeText(inviteLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function startRound() {
+    if (!meId) return;
+    setBusy(true);
+    setMessage("");
+    const res = await fetch("/api/game/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomCode: code, playerId: meId }),
+    });
+    const data = await res.json();
+    if (data.finished) setRoomStatus("finished");
+    else if (data.round) setRound(data.round as Round);
+    else setMessage(data.error ?? "Kuch gadbad ho gayi");
+    setBusy(false);
+  }
+
+  async function submitAnswer() {
+    if (!meId || !round || !answer.trim()) return;
+    setBusy(true);
+    const res = await fetch("/api/game/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roundId: round.id, playerId: meId, answer }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setResult({ roundId: round.id, correct: data.correct, points: data.points });
+    } else if (res.status === 409) {
+      setMessage("Tumne jawab de diya hai!");
+    } else {
+      setMessage(data.error ?? "Jawab nahi gaya");
+    }
+    setBusy(false);
   }
 
   if (notFound) {
@@ -107,6 +192,112 @@ function RoomContent() {
     );
   }
 
+  const leaderboard = (
+    <ul className="mt-3 w-full max-w-xs space-y-2">
+      {ranked.map((p, i) => (
+        <li
+          key={p.id}
+          className="flex items-center gap-3 rounded-2xl bg-midnight-light px-4 py-3 text-left"
+        >
+          <span className="w-6 text-lg font-bold text-marigold">{i + 1}</span>
+          <span className="text-3xl">{p.avatar}</span>
+          <span className="flex-1 text-lg font-semibold text-cream">
+            {p.nickname}
+            {p.id === meId && " (tum)"}
+          </span>
+          <span className="text-xl font-extrabold text-marigold">{p.score}</span>
+        </li>
+      ))}
+    </ul>
+  );
+
+  // FINISHED
+  if (roomStatus === "finished") {
+    return (
+      <main className="flex min-h-screen flex-col items-center bg-midnight px-6 py-10 text-center">
+        <div className="text-6xl">🏆</div>
+        <h1 className="mt-3 text-3xl font-extrabold text-marigold">Game khatam!</h1>
+        {ranked[0] && (
+          <p className="mt-2 text-xl text-cream">
+            {ranked[0].avatar} {ranked[0].nickname} jeet gaya/gayi!
+          </p>
+        )}
+        {leaderboard}
+        <p className="mt-6 text-cream/70">Ek aur round khelte hain? Jaldi aa raha hai 😉</p>
+      </main>
+    );
+  }
+
+  // PLAYING
+  if (round) {
+    const showNext = me?.is_host && timeUp;
+    return (
+      <main className="flex min-h-screen flex-col items-center bg-midnight px-6 py-8 text-center">
+        <p className="text-sm text-cream/70">
+          Round {round.round_number} • {round.points} points
+        </p>
+
+        <div className="mt-3 flex h-20 w-20 items-center justify-center rounded-full bg-marigold text-4xl font-extrabold text-midnight">
+          {secondsLeft}
+        </div>
+
+        <div className="mt-5 w-full max-w-sm rounded-3xl bg-cream px-5 py-5 text-midnight">
+          <p className="text-xl font-semibold">{round.question_text}</p>
+        </div>
+        {round.hint && secondsLeft <= 10 && !timeUp && (
+          <p className="mt-3 text-cream/80">💡 Hint: {round.hint}</p>
+        )}
+
+        {!timeUp && !myResult && (
+          <div className="mt-5 flex w-full max-w-sm flex-col gap-3">
+            <input
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitAnswer()}
+              maxLength={100}
+              placeholder="Apna jawab likho..."
+              className="rounded-2xl bg-cream px-4 py-3 text-lg text-midnight outline-none"
+            />
+            <button
+              onClick={submitAnswer}
+              disabled={busy}
+              className="rounded-full bg-marigold py-3 text-xl font-bold text-midnight disabled:opacity-60"
+            >
+              Jawab bhejo!
+            </button>
+          </div>
+        )}
+
+        {myResult && (
+          <p className="mt-5 text-2xl font-bold text-cream">
+            {myResult.correct ? `Wahhh! Sahi jawab! +${myResult.points} 🎉` : "Close tha, par dil ke paas! 😅"}
+          </p>
+        )}
+        {timeUp && !myResult && (
+          <p className="mt-5 text-xl text-cream">Time khatam! ⏰</p>
+        )}
+        {message && <p className="mt-3 text-sm text-red-300">{message}</p>}
+
+        <h2 className="mt-8 text-xl font-bold text-cream">Leaderboard</h2>
+        {leaderboard}
+
+        {showNext && (
+          <button
+            onClick={startRound}
+            disabled={busy}
+            className="mt-6 w-full max-w-xs rounded-full bg-marigold py-3 text-xl font-bold text-midnight disabled:opacity-60"
+          >
+            Agla round ▶
+          </button>
+        )}
+        {timeUp && !me?.is_host && (
+          <p className="mt-6 text-cream/70">Host agla round shuru karenge...</p>
+        )}
+      </main>
+    );
+  }
+
+  // LOBBY
   return (
     <main className="flex min-h-screen flex-col items-center bg-midnight px-6 py-10 text-center">
       <div className="text-5xl">👧</div>
@@ -119,9 +310,7 @@ function RoomContent() {
       </div>
 
       <p className="mt-8 text-sm text-cream/70">Room code</p>
-      <p className="text-5xl font-extrabold tracking-widest text-marigold">
-        {code}
-      </p>
+      <p className="text-5xl font-extrabold tracking-widest text-marigold">{code}</p>
 
       <div className="mt-5 flex w-full max-w-xs flex-col gap-3">
         <a
@@ -140,9 +329,7 @@ function RoomContent() {
         </button>
       </div>
 
-      <h2 className="mt-8 text-xl font-bold text-cream">
-        Chaupal mein ({players.length})
-      </h2>
+      <h2 className="mt-8 text-xl font-bold text-cream">Chaupal mein ({players.length})</h2>
       <ul className="mt-3 w-full max-w-xs space-y-2">
         {players.map((p) => (
           <li
@@ -163,12 +350,15 @@ function RoomContent() {
         ))}
       </ul>
 
+      {message && <p className="mt-4 text-sm text-red-300">{message}</p>}
+
       {me?.is_host ? (
         <button
-          disabled
-          className="mt-8 w-full max-w-xs rounded-full bg-marigold/50 py-3 text-xl font-bold text-midnight"
+          onClick={startRound}
+          disabled={busy}
+          className="mt-8 w-full max-w-xs rounded-full bg-marigold py-3 text-xl font-bold text-midnight disabled:opacity-60"
         >
-          ▶ Game shuru karo (jaldi aa raha hai)
+          ▶ Game shuru karo
         </button>
       ) : (
         <p className="mt-8 text-cream/70">Host ke game shuru karne ka wait...</p>
