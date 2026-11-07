@@ -1,3 +1,4 @@
+import ChutkiOverlay from "@/components/Chutki/ChutkiOverlay";
 import type { Metadata } from "next";
 import { Baloo_2 } from "next/font/google";
 import "./globals.css";
@@ -19,7 +20,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${baloo.variable} antialiased`}>{children}</body>
+     <body className={`${baloo.variable} antialiased`}>
+  {children}
+  <ChutkiOverlay />
+</body>
     </html>
   );
 }

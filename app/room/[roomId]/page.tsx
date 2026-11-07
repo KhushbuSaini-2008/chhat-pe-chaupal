@@ -1,4 +1,5 @@
-﻿"use client";
+﻿import { useChutkiVoice } from "@/lib/ai-host/useChutkiVoice";
+"use client";
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -160,6 +161,7 @@ function RoomContent() {
   const me = players.find((p) => p.id === meId);
   const ranked = [...players].sort((a, b) => b.score - a.score);
   const myResult = result && round && result.roundId === round.id ? result : null;
+  useChutkiVoice({ roundId: round?.id, timeUp, myResult, roomStatus });
 
   const inviteLink =
     typeof window !== "undefined" ? `${window.location.origin}/join?code=${code}` : "";
