@@ -30,8 +30,15 @@ export async function POST(req: Request) {
 
   const { data: rounds } = await db
     .from("game_rounds")
-    .select("question_id")
-    .eq("room_id", room.id);
+    .select("question_id, ends_at")
+    .eq("room_id", room.id)
+    .order("round_number", { ascending: false });
+
+  const latest = rounds?.[0];
+  if (latest && new Date(latest.ends_at).getTime() > Date.now()) {
+    return NextResponse.json({ error: "Pichla round abhi chal raha hai" }, { status: 400 });
+  }
+
   const used = (rounds ?? []).map((r) => r.question_id);
   const nextNumber = used.length + 1;
 

@@ -23,6 +23,11 @@ type Round = {
 
 type Result = { roundId: string; correct: boolean; points: number } | null;
 
+type RevealData = {
+  answer: string;
+  winners: { nickname: string; avatar: string; points: number }[];
+};
+
 function RoomContent() {
   const { roomId } = useParams<{ roomId: string }>();
   const code = roomId.toUpperCase();
@@ -40,6 +45,12 @@ function RoomContent() {
   const [result, setResult] = useState<Result>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reveal, setReveal] = useState<RevealData | null>(null);
+
+  const secondsLeft = round
+    ? Math.max(0, Math.ceil((new Date(round.ends_at).getTime() - now) / 1000))
+    : 0;
+  const timeUp = !!round && secondsLeft === 0;
 
   // Clock tick for the countdown
   useEffect(() => {
@@ -127,14 +138,27 @@ function RoomContent() {
   useEffect(() => {
     setAnswer("");
     setMessage("");
+    setReveal(null);
   }, [round?.id]);
+
+  // Load result when time is up
+  useEffect(() => {
+    if (timeUp && round?.id && meId && !reveal) {
+      fetch("/api/game/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roundId: round.id, playerId: meId }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.answer) setReveal(data);
+        })
+        .catch((err) => console.error("Reveal error:", err));
+    }
+  }, [timeUp, round?.id, meId, reveal]);
 
   const me = players.find((p) => p.id === meId);
   const ranked = [...players].sort((a, b) => b.score - a.score);
-  const secondsLeft = round
-    ? Math.max(0, Math.ceil((new Date(round.ends_at).getTime() - now) / 1000))
-    : 0;
-  const timeUp = !!round && secondsLeft === 0;
   const myResult = result && round && result.roundId === round.id ? result : null;
 
   const inviteLink =
@@ -276,6 +300,32 @@ function RoomContent() {
         {timeUp && !myResult && (
           <p className="mt-5 text-xl text-cream">Time khatam! ⏰</p>
         )}
+
+        {reveal && (
+          <div className="mt-6 w-full max-w-sm rounded-3xl border-2 border-marigold bg-midnight-light p-5 shadow-xl">
+            <p className="text-sm text-marigold uppercase tracking-wider font-bold">Sahi jawab</p>
+            <p className="mt-1 text-2xl font-extrabold text-cream">{reveal.answer}</p>
+
+            <div className="mt-4 border-t border-cream/10 pt-4">
+              {reveal.winners.length > 0 ? (
+                <>
+                  <p className="text-sm text-cream/70 mb-2">Inhone sahi bataya: 🏆</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {reveal.winners.map((w, i) => (
+                      <div key={i} className="flex items-center gap-1 rounded-full bg-midnight px-3 py-1 text-sm border border-marigold/30">
+                        <span>{w.avatar}</span>
+                        <span className="font-semibold text-cream">{w.nickname}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-cream/70 italic">Is baar kisi ne sahi nahi bataya! 😅</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {message && <p className="mt-3 text-sm text-red-300">{message}</p>}
 
         <h2 className="mt-8 text-xl font-bold text-cream">Leaderboard</h2>
