@@ -1,5 +1,6 @@
-﻿import { useChutkiVoice } from "@/lib/ai-host/useChutkiVoice";
+﻿
 "use client";
+import { useChutkiVoice } from "@/lib/ai-host/useChutkiVoice";
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
