@@ -30,7 +30,8 @@ export const DIALOGUES: Record<string, Line[]> = {
   ],
 };
 
-export function pickLine(key: keyof typeof DIALOGUES): Line {
+export function pickLine(key: keyof typeof DIALOGUES) {
   const lines = DIALOGUES[key];
-  return lines[Math.floor(Math.random() * lines.length)];
+  const i = Math.floor(Math.random() * lines.length);
+  return { ...lines[i], src: `/chutki/${key}_${i}.mp3` };
 }
