@@ -46,8 +46,10 @@ export async function POST(req: Request) {
       }
     );
 
-    if (!res.ok) return NextResponse.json(FALLBACK);
-
+    if (!res.ok) {
+      console.error("Gemini text error:", res.status, await res.text());
+      return NextResponse.json(FALLBACK);
+    }
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     const parsed = JSON.parse(text);

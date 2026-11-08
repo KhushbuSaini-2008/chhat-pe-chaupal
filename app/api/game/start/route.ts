@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { THEMES, RIDDLES_PER_ROUND } from "@/lib/game-engine/rounds";
 
 export async function POST(req: Request) {
   const { roomCode, playerId } = await req.json();
@@ -30,32 +31,46 @@ export async function POST(req: Request) {
 
   const { data: rounds } = await db
     .from("game_rounds")
-    .select("question_id, ends_at")
+    .select("question_id, round_number, ends_at")
     .eq("room_id", room.id)
     .order("round_number", { ascending: false });
+  const list = rounds ?? [];
 
-  const latest = rounds?.[0];
-  if (latest && new Date(latest.ends_at).getTime() > Date.now()) {
+  // Don't start the next riddle while the previous one is still running
+  if (list.length > 0 && new Date(list[0].ends_at).getTime() > Date.now() + 2000) {
     return NextResponse.json({ error: "Pichla round abhi chal raha hai" }, { status: 400 });
   }
 
-  const used = (rounds ?? []).map((r) => r.question_id);
-  const nextNumber = used.length + 1;
+  const used = list.map((r) => r.question_id);
+  const nextNumber = list.length + 1;
 
-  if (nextNumber > room.total_rounds) {
+  // The slider on the create page now means "how many themed rounds" (max 5)
+  const themeCount = Math.min(Math.max(Number(room.total_rounds) || 5, 1), THEMES.length);
+  const totalRiddles = themeCount * RIDDLES_PER_ROUND;
+
+  async function finish() {
     await db.from("rooms").update({ status: "finished" }).eq("id", room.id);
     return NextResponse.json({ finished: true });
   }
 
-  const { data: questions } = await db.from("questions").select("*");
-  const available = (questions ?? []).filter((q) => !used.includes(q.id));
-  if (available.length === 0) {
-    await db.from("rooms").update({ status: "finished" }).eq("id", room.id);
-    return NextResponse.json({ finished: true });
+  if (nextNumber > totalRiddles) return finish();
+
+  const theme = THEMES[Math.floor((nextNumber - 1) / RIDDLES_PER_ROUND)];
+  const pool = theme.ids.filter((id) => !used.includes(id));
+  if (pool.length === 0) return finish();
+
+  const questionId = pool[Math.floor(Math.random() * pool.length)];
+  const { data: q } = await db
+    .from("questions")
+    .select("*")
+    .eq("id", questionId)
+    .maybeSingle();
+  if (!q) {
+    return NextResponse.json({ error: "Riddle nahi mili" }, { status: 500 });
   }
 
-  const q = available[Math.floor(Math.random() * available.length)];
-  const endsAt = new Date(Date.now() + (q.time_limit + 8) * 1000).toISOString();
+  // +10 seconds so Chutki has time to read the riddle aloud
+  const endsAt = new Date(Date.now() + (q.time_limit + 10) * 1000).toISOString();
 
   const { data: round, error } = await db
     .from("game_rounds")

@@ -1,5 +1,7 @@
 ﻿
 "use client";
+import { themeFor } from "@/lib/game-engine/rounds";
+import { chutkiAsk } from "@/lib/ai-host/chutki";
 import { useWelcome } from "@/lib/ai-host/useWelcome";
 import { useChutkiVoice } from "@/lib/ai-host/useChutkiVoice";
 
@@ -164,7 +166,17 @@ function RoomContent() {
   const me = players.find((p) => p.id === meId);
   const ranked = [...players].sort((a, b) => b.score - a.score);
   const myResult = result && round && result.roundId === round.id ? result : null;
-  useChutkiVoice({ roundId: round?.id, questionId: round?.question_id, timeUp, myResult, roomStatus });
+  const themeInfo = round ? themeFor(round.round_number) : null;
+const hideText = !!themeInfo?.theme.listening && !timeUp && secondsLeft > 12;
+ useChutkiVoice({
+  roundId: round?.id,
+  questionId: round?.question_id,
+  timeUp,
+  secondsLeft,
+  myResult,
+  roomStatus,
+  winnerName: ranked[0]?.nickname,
+});
   useWelcome(players, meId);
 const [origin, setOrigin] = useState("");
 useEffect(() => {
@@ -267,7 +279,10 @@ const inviteLink = origin ? `${origin}/join?code=${code}` : "";
     return (
       <main className="flex min-h-screen flex-col items-center bg-midnight px-6 py-8 text-center">
         <p className="text-sm text-cream/70">
-          Round {round.round_number} • {round.points} points
+          {themeInfo
+            ? `Round ${themeInfo.themeNumber} • ${themeInfo.theme.emoji} ${themeInfo.theme.name} • Sawal ${themeInfo.questionNumber}/5`
+            : `Round ${round.round_number}`}{" "}
+          • {round.points} points
         </p>
 
         <div className="mt-3 flex h-20 w-20 items-center justify-center rounded-full bg-marigold text-4xl font-extrabold text-midnight">
@@ -275,7 +290,21 @@ const inviteLink = origin ? `${origin}/join?code=${code}` : "";
         </div>
 
         <div className="mt-5 w-full max-w-sm rounded-3xl bg-cream px-5 py-5 text-midnight">
-          <p className="text-xl font-semibold">{round.question_text}</p>
+                   {hideText ? (
+            <>
+              <p className="text-xl font-semibold">
+                🎧 Dhyan se suno! Chutki riddle bol rahi hai...
+              </p>
+              <button
+                onClick={() => chutkiAsk(round.question_id)}
+                className="mt-3 rounded-full border-2 border-midnight px-4 py-1 text-sm font-bold"
+              >
+                🔁 Dobara suno
+              </button>
+            </>
+          ) : (
+            <p className="text-xl font-semibold">{round.question_text}</p>
+          )}
         </div>
         {round.hint && secondsLeft <= 10 && !timeUp && (
           <p className="mt-3 text-cream/80">💡 Hint: {round.hint}</p>

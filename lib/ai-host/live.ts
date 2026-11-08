@@ -11,6 +11,8 @@ const FALLBACK_CLIP: Record<Ev, string> = {
 };
 
 export async function chutkiLive(event: Ev, name?: string) {
+  console.log("[Chutki] event:", event, name);
+
   let line = { show: "", say: "" };
   try {
     const r = await fetch("/api/chutki", {
@@ -19,7 +21,9 @@ export async function chutkiLive(event: Ev, name?: string) {
       body: JSON.stringify({ event, name }),
     });
     line = await r.json();
-  } catch {
+    console.log("[Chutki] line:", line);
+  } catch (e) {
+    console.error("[Chutki] line fetch failed", e);
     return;
   }
 
@@ -31,10 +35,13 @@ export async function chutkiLive(event: Ev, name?: string) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: line.say }),
     });
-    if (!t.ok) throw new Error("tts failed");
+    console.log("[Chutki] tts status:", t.status);
+    if (!t.ok) throw new Error("tts failed " + t.status);
     const blob = await t.blob();
+    console.log("[Chutki] audio bytes:", blob.size);
     speakQueue([URL.createObjectURL(blob)]);
-  } catch {
+  } catch (e) {
+    console.warn("[Chutki] using fallback clip", e);
     speakClip(FALLBACK_CLIP[event]);
   }
 }

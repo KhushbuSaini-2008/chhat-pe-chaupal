@@ -9,11 +9,12 @@ export function chutkiSay(key: keyof typeof DIALOGUES) {
   speakClip(line.src);
 }
 
-// New round: short intro line, then reads the riddle
+// New riddle: short intro, then Chutki reads the riddle aloud
 export function chutkiAsk(questionId: string) {
-  const line = pickLine("nextRound");
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("chutki-say", { detail: line.show }));
+    window.dispatchEvent(
+      new CustomEvent("chutki-say", { detail: "Chalo, ab agli paheli!" })
+    );
   }
-  speakQueue([line.src, `/chutki/q/${questionId}.mp3`]);
+  speakQueue(["/chutki/nextRound_0.mp3", `/chutki/q/${questionId}.mp3`]);
 }

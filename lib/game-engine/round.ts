@@ -12,7 +12,7 @@ export const THEMES: Theme[] = [
   { name: "Diwali Dhamaka", emoji: "🪔", ids: ["P003", "P011", "P012", "P013", "P024"] },
   { name: "Hansi Mazaak", emoji: "😂", ids: ["P005", "P015", "P016", "P021", "P023"] },
   { name: "Dimaag Ghumao", emoji: "🧠", ids: ["P006", "P009", "P010", "P014", "P025"] },
-  { name: "Suno Aur Batao", emoji: "🎧", ids: ["P002", "P007", "P018", "P019", "P020"] },
+  { name: "Suno Aur Batao", emoji: "🎧", ids: ["P002", "P007", "P018", "P019", "P020"], listening: true },
 ];
 
 export function themeFor(roundNumber: number) {

@@ -54,7 +54,10 @@ export async function POST(req: Request) {
       }
     );
 
-    if (!res.ok) return new Response("tts failed", { status: 502 });
+        if (!res.ok) {
+      console.error("Gemini TTS error:", res.status, await res.text());
+      return new Response("tts failed", { status: 502 });
+    }
 
     const data = await res.json();
     const b64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
