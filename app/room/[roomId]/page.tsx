@@ -1,13 +1,13 @@
-﻿
-"use client";
-import { themeFor } from "@/lib/game-engine/rounds";
-import { chutkiAsk } from "@/lib/ai-host/chutki";
-import { useWelcome } from "@/lib/ai-host/useWelcome";
-import { useChutkiVoice } from "@/lib/ai-host/useChutkiVoice";
+﻿"use client";
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import Postcard from "@/components/Postcard/Postcard";
+import { themeFor } from "@/lib/game-engine/rounds";
+import { chutkiAsk } from "@/lib/ai-host/chutki";
+import { useWelcome } from "@/lib/ai-host/useWelcome";
+import { useChutkiVoice } from "@/lib/ai-host/useChutkiVoice";
 
 type Player = {
   id: string;
@@ -18,7 +18,7 @@ type Player = {
 };
 
 type Round = {
-    question_id: string;
+  question_id: string;
   id: string;
   round_number: number;
   question_text: string;
@@ -52,6 +52,7 @@ function RoomContent() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [reveal, setReveal] = useState<RevealData | null>(null);
+  const [origin, setOrigin] = useState("");
 
   const secondsLeft = round
     ? Math.max(0, Math.ceil((new Date(round.ends_at).getTime() - now) / 1000))
@@ -62,6 +63,10 @@ function RoomContent() {
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
   }, []);
 
   useEffect(() => {
@@ -147,7 +152,7 @@ function RoomContent() {
     setReveal(null);
   }, [round?.id]);
 
-  // Load result when time is up
+  // Load the correct answer when time is up
   useEffect(() => {
     if (timeUp && round?.id && meId && !reveal) {
       fetch("/api/game/reveal", {
@@ -167,23 +172,20 @@ function RoomContent() {
   const ranked = [...players].sort((a, b) => b.score - a.score);
   const myResult = result && round && result.roundId === round.id ? result : null;
   const themeInfo = round ? themeFor(round.round_number) : null;
-const hideText = !!themeInfo?.theme.listening && !timeUp && secondsLeft > 12;
- useChutkiVoice({
-  roundId: round?.id,
-  questionId: round?.question_id,
-  timeUp,
-  secondsLeft,
-  myResult,
-  roomStatus,
-  winnerName: ranked[0]?.nickname,
-});
-  useWelcome(players, meId);
-const [origin, setOrigin] = useState("");
-useEffect(() => {
-  setOrigin(window.location.origin);
-}, []);
-const inviteLink = origin ? `${origin}/join?code=${code}` : "";
+  const hideText = !!themeInfo?.theme.listening && !timeUp && secondsLeft > 12;
 
+  useChutkiVoice({
+    roundId: round?.id,
+    questionId: round?.question_id,
+    timeUp,
+    secondsLeft,
+    myResult,
+    roomStatus,
+    winnerName: ranked[0]?.nickname,
+  });
+  useWelcome(players, meId);
+
+  const inviteLink = origin ? `${origin}/join?code=${code}` : "";
   const whatsappText = encodeURIComponent(
     `Chalo Chhat Pe Chaupal khelte hain! 🪔 Room code: ${code}\n${inviteLink}`
   );
@@ -268,7 +270,7 @@ const inviteLink = origin ? `${origin}/join?code=${code}` : "";
           </p>
         )}
         {leaderboard}
-        <p className="mt-6 text-cream/70">Ek aur round khelte hain? Jaldi aa raha hai 😉</p>
+        <Postcard players={ranked} code={code} />
       </main>
     );
   }
@@ -290,7 +292,7 @@ const inviteLink = origin ? `${origin}/join?code=${code}` : "";
         </div>
 
         <div className="mt-5 w-full max-w-sm rounded-3xl bg-cream px-5 py-5 text-midnight">
-                   {hideText ? (
+          {hideText ? (
             <>
               <p className="text-xl font-semibold">
                 🎧 Dhyan se suno! Chutki riddle bol rahi hai...
@@ -332,7 +334,9 @@ const inviteLink = origin ? `${origin}/join?code=${code}` : "";
 
         {myResult && (
           <p className="mt-5 text-2xl font-bold text-cream">
-            {myResult.correct ? `Wahhh! Sahi jawab! +${myResult.points} 🎉` : "Close tha, par dil ke paas! 😅"}
+            {myResult.correct
+              ? `Wahhh! Sahi jawab! +${myResult.points} 🎉`
+              : "Close tha, par dil ke paas! 😅"}
           </p>
         )}
         {timeUp && !myResult && (
@@ -341,16 +345,21 @@ const inviteLink = origin ? `${origin}/join?code=${code}` : "";
 
         {reveal && (
           <div className="mt-6 w-full max-w-sm rounded-3xl border-2 border-marigold bg-midnight-light p-5 shadow-xl">
-            <p className="text-sm text-marigold uppercase tracking-wider font-bold">Sahi jawab</p>
+            <p className="text-sm font-bold uppercase tracking-wider text-marigold">
+              Sahi jawab
+            </p>
             <p className="mt-1 text-2xl font-extrabold text-cream">{reveal.answer}</p>
 
             <div className="mt-4 border-t border-cream/10 pt-4">
               {reveal.winners.length > 0 ? (
                 <>
-                  <p className="text-sm text-cream/70 mb-2">Inhone sahi bataya: 🏆</p>
+                  <p className="mb-2 text-sm text-cream/70">Inhone sahi bataya: 🏆</p>
                   <div className="flex flex-wrap justify-center gap-2">
                     {reveal.winners.map((w, i) => (
-                      <div key={i} className="flex items-center gap-1 rounded-full bg-midnight px-3 py-1 text-sm border border-marigold/30">
+                      <div
+                        key={i}
+                        className="flex items-center gap-1 rounded-full border border-marigold/30 bg-midnight px-3 py-1 text-sm"
+                      >
                         <span>{w.avatar}</span>
                         <span className="font-semibold text-cream">{w.nickname}</span>
                       </div>
@@ -358,7 +367,9 @@ const inviteLink = origin ? `${origin}/join?code=${code}` : "";
                   </div>
                 </>
               ) : (
-                <p className="text-cream/70 italic">Is baar kisi ne sahi nahi bataya! 😅</p>
+                <p className="italic text-cream/70">
+                  Is baar kisi ne sahi nahi bataya! 😅
+                </p>
               )}
             </div>
           </div>
@@ -417,7 +428,9 @@ const inviteLink = origin ? `${origin}/join?code=${code}` : "";
         </button>
       </div>
 
-      <h2 className="mt-8 text-xl font-bold text-cream">Chaupal mein ({players.length})</h2>
+      <h2 className="mt-8 text-xl font-bold text-cream">
+        Chaupal mein ({players.length})
+      </h2>
       <ul className="mt-3 w-full max-w-xs space-y-2">
         {players.map((p) => (
           <li
