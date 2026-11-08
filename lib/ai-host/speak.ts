@@ -6,7 +6,6 @@ export function unlockAudio() {
   if (typeof window === "undefined" || unlocked) return;
   unlocked = true;
 
-  // Voice element: unlock it inside the tap (muted), then reuse it later
   voice = new Audio("/chutki/nextRound_0.mp3");
   voice.muted = true;
   voice
@@ -26,18 +25,26 @@ export function unlockAudio() {
   music.play().catch(() => {});
 }
 
-export function speakClip(src: string) {
+export function speakQueue(srcs: string[]) {
   if (typeof window === "undefined" || !voice) return;
   const v = voice;
-
   music?.pause();
-  const resume = () => {
-    music?.play().catch(() => {});
-  };
 
-  v.onended = resume;
-  v.onerror = resume;
-  v.src = src;
-  v.muted = false;
-  v.play().catch(resume);
+  let i = 0;
+  const next = () => {
+    if (i >= srcs.length) {
+      music?.play().catch(() => {});
+      return;
+    }
+    v.src = srcs[i++];
+    v.muted = false;
+    v.play().catch(next);
+  };
+  v.onended = next;
+  v.onerror = next;
+  next();
+}
+
+export function speakClip(src: string) {
+  speakQueue([src]);
 }

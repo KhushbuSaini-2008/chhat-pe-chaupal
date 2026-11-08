@@ -55,7 +55,7 @@ export async function POST(req: Request) {
   }
 
   const q = available[Math.floor(Math.random() * available.length)];
-  const endsAt = new Date(Date.now() + q.time_limit * 1000).toISOString();
+  const endsAt = new Date(Date.now() + (q.time_limit + 8) * 1000).toISOString();
 
   const { data: round, error } = await db
     .from("game_rounds")

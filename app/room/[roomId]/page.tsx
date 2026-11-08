@@ -1,5 +1,6 @@
 ﻿
 "use client";
+import { useWelcome } from "@/lib/ai-host/useWelcome";
 import { useChutkiVoice } from "@/lib/ai-host/useChutkiVoice";
 
 import { Suspense, useEffect, useState } from "react";
@@ -15,6 +16,7 @@ type Player = {
 };
 
 type Round = {
+    question_id: string;
   id: string;
   round_number: number;
   question_text: string;
@@ -162,7 +164,8 @@ function RoomContent() {
   const me = players.find((p) => p.id === meId);
   const ranked = [...players].sort((a, b) => b.score - a.score);
   const myResult = result && round && result.roundId === round.id ? result : null;
-  useChutkiVoice({ roundId: round?.id, timeUp, myResult, roomStatus });
+  useChutkiVoice({ roundId: round?.id, questionId: round?.question_id, timeUp, myResult, roomStatus });
+  useWelcome(players, meId);
 const [origin, setOrigin] = useState("");
 useEffect(() => {
   setOrigin(window.location.origin);

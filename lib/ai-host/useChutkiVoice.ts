@@ -1,26 +1,33 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { chutkiSay } from "./chutki";
+import { chutkiSay, chutkiAsk } from "./chutki";
 
 type Args = {
   roundId?: string;
+  questionId?: string;
   timeUp: boolean;
   myResult: { correct: boolean } | null;
   roomStatus: string;
 };
 
-export function useChutkiVoice({ roundId, timeUp, myResult, roomStatus }: Args) {
+export function useChutkiVoice({
+  roundId,
+  questionId,
+  timeUp,
+  myResult,
+  roomStatus,
+}: Args) {
   const lastRound = useRef<string | null>(null);
   const lastResult = useRef<string | null>(null);
   const lastTimeUp = useRef<string | null>(null);
   const finished = useRef(false);
 
   useEffect(() => {
-    if (!roundId || lastRound.current === roundId) return;
+    if (!roundId || !questionId || lastRound.current === roundId) return;
     lastRound.current = roundId;
-    chutkiSay("nextRound");
-  }, [roundId]);
+    chutkiAsk(questionId);
+  }, [roundId, questionId]);
 
   useEffect(() => {
     if (!roundId || !myResult) return;
