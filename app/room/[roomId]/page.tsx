@@ -163,9 +163,12 @@ function RoomContent() {
   const ranked = [...players].sort((a, b) => b.score - a.score);
   const myResult = result && round && result.roundId === round.id ? result : null;
   useChutkiVoice({ roundId: round?.id, timeUp, myResult, roomStatus });
+const [origin, setOrigin] = useState("");
+useEffect(() => {
+  setOrigin(window.location.origin);
+}, []);
+const inviteLink = origin ? `${origin}/join?code=${code}` : "";
 
-  const inviteLink =
-    typeof window !== "undefined" ? `${window.location.origin}/join?code=${code}` : "";
   const whatsappText = encodeURIComponent(
     `Chalo Chhat Pe Chaupal khelte hain! 🪔 Room code: ${code}\n${inviteLink}`
   );
