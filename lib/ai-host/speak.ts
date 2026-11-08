@@ -1,29 +1,43 @@
-const MUSIC_NORMAL = 0.22;
-const MUSIC_LOW = 0.06;
-
 let music: HTMLAudioElement | null = null;
-let current: HTMLAudioElement | null = null;
+let voice: HTMLAudioElement | null = null;
+let unlocked = false;
 
-export function startMusic() {
-  if (typeof window === "undefined") return;
-  if (!music) {
-    music = new Audio("/sounds/bg.mp3");
-    music.loop = true;
-    music.volume = MUSIC_NORMAL;
-  }
+export function unlockAudio() {
+  if (typeof window === "undefined" || unlocked) return;
+  unlocked = true;
+
+  // Voice element: unlock it inside the tap (muted), then reuse it later
+  voice = new Audio("/chutki/nextRound_0.mp3");
+  voice.muted = true;
+  voice
+    .play()
+    .then(() => {
+      voice!.pause();
+      voice!.currentTime = 0;
+      voice!.muted = false;
+    })
+    .catch(() => {
+      if (voice) voice.muted = false;
+    });
+
+  music = new Audio("/sounds/bg.mp3");
+  music.loop = true;
+  music.volume = 0.3;
   music.play().catch(() => {});
 }
 
 export function speakClip(src: string) {
-  if (typeof window === "undefined") return;
-  current?.pause();
-  const a = new Audio(src);
-  current = a;
-  if (music) music.volume = MUSIC_LOW;
-  const restore = () => {
-    if (music && current === a) music.volume = MUSIC_NORMAL;
+  if (typeof window === "undefined" || !voice) return;
+  const v = voice;
+
+  music?.pause();
+  const resume = () => {
+    music?.play().catch(() => {});
   };
-  a.onended = restore;
-  a.onerror = restore;
-  a.play().catch(restore);
+
+  v.onended = resume;
+  v.onerror = resume;
+  v.src = src;
+  v.muted = false;
+  v.play().catch(resume);
 }

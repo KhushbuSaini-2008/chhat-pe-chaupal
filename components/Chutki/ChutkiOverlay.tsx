@@ -1,18 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { startMusic } from "@/lib/ai-host/speak";
+import { unlockAudio } from "@/lib/ai-host/speak";
 
 export default function ChutkiOverlay() {
+  const [started, setStarted] = useState(false);
   const [bubble, setBubble] = useState("");
 
   useEffect(() => {
-    function first() {
-      startMusic();
-      window.removeEventListener("pointerdown", first);
-    }
-    window.addEventListener("pointerdown", first);
-
     let timer: ReturnType<typeof setTimeout>;
     function onSay(e: Event) {
       setBubble((e as CustomEvent<string>).detail);
@@ -20,13 +15,33 @@ export default function ChutkiOverlay() {
       timer = setTimeout(() => setBubble(""), 4000);
     }
     window.addEventListener("chutki-say", onSay);
-
     return () => {
-      window.removeEventListener("pointerdown", first);
       window.removeEventListener("chutki-say", onSay);
       clearTimeout(timer);
     };
   }, []);
+
+  function start() {
+    unlockAudio();
+    setStarted(true);
+  }
+
+  if (!started) {
+    return (
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-midnight/95 px-6 text-center">
+        <div className="text-7xl">👧</div>
+        <p className="mt-4 text-xl font-semibold text-cream">
+          Chutki aapka intezaar kar rahi hai!
+        </p>
+        <button
+          onClick={start}
+          className="mt-6 rounded-full bg-marigold px-8 py-4 text-xl font-bold text-midnight shadow-lg"
+        >
+          🔊 Awaaz ke saath shuru karo
+        </button>
+      </div>
+    );
+  }
 
   if (!bubble) return null;
 
